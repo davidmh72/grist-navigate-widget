@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 
-const WIDGET_VERSION = "v4.6 - Use RowID";
+const WIDGET_VERSION = "v4.7 - Refactored Grist Logic";
 
 function App() {
   const [status, setStatus] = useState("Initializing...");
   const [config, setConfig] = useState(null);
+  const [tableId, setTableId] = useState(null);
   const [isExpanded, setIsExpanded] = useState(() => {
     const width = window.innerWidth;
     const height = window.innerHeight;
@@ -55,7 +56,10 @@ function App() {
     if (mounted.current) return;
     mounted.current = true;
     
-    if (!grist) { setStatus("Error: Grist API missing"); return; }
+    if (!grist) {
+      setStatus("Error: Grist API missing");
+      return;
+    }
 
     grist.ready({
       columns: [
@@ -66,8 +70,16 @@ function App() {
       requiredAccess: 'read table'
     });
 
-    let tableId;
+    grist.onOptions((options) => {
+      if (options && options.tableId) {
+        setTableId(options.tableId);
+      } else {
+        setTableId(null);
+      }
+    });
+  }, []);
 
+  useEffect(() => {
     const fetchAndSetConfig = async () => {
       if (!tableId) {
         setStatus("Please link a table in the Creator Panel.");
@@ -93,17 +105,8 @@ function App() {
       }
     };
 
-    grist.onOptions((options) => {
-      if (options && options.tableId) {
-        tableId = options.tableId;
-        fetchAndSetConfig();
-      } else {
-        tableId = null;
-        setConfig(null);
-        setStatus("Please link a table in the Creator Panel.");
-      }
-    });
-  }, []);
+    fetchAndSetConfig();
+  }, [tableId]);
 
   // Only redirect if we have a URL AND the widget is expanded (large enough)
   useEffect(() => {
