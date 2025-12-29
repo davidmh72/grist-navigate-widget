@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 
-const WIDGET_VERSION = "v4.2 - ID Driven Redirect (Table Fetch)";
+const WIDGET_VERSION = "v4.3 - Fixed API usage";
 
 function App() {
   const [status, setStatus] = useState("Initializing...");
