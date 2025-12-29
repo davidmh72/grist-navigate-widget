@@ -1,12 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
+// 1. IMPORT THE API EXPLICITLY
+import * as grist from 'grist-plugin-api';
 
-const WIDGET_VERSION = "v2.0 - Page ID Support";
+const WIDGET_VERSION = "v2.1 - API Import Fix";
 const MAGIC_STOP_WORD = "EDIT"; 
 
 function App() {
   const [status, setStatus] = useState("Initializing...");
   const [editMode, setEditMode] = useState(false);
-  const grist = window.grist;
+  // const grist = window.grist; // <--- REMOVE THIS LINE (We imported it above)
   const mounted = useRef(false);
 
   const handleNavigate = (url) => {
@@ -24,10 +26,7 @@ function App() {
 
   // Helper to build URL from Page ID
   const buildUrlFromId = (pageId) => {
-    // Get current URL base (e.g. https://dev.teebase.net/o/docs/doc/ID)
     const currentPath = window.top.location.pathname;
-    // Grist URLs are usually .../p/PAGE_ID
-    // We strip existing /p/... and append the new one
     const basePath = currentPath.split('/p/')[0]; 
     return `${window.top.location.origin}${basePath}/p/${pageId}`;
   };
@@ -35,11 +34,12 @@ function App() {
   useEffect(() => {
     if (mounted.current) return;
     mounted.current = true;
+    
+    // 2. CHECK THE IMPORTED OBJECT
     if (!grist) { setStatus("Error: Grist API missing"); return; }
 
     grist.ready({
       columns: [
-        // Allow mapping EITHER a full Link OR a Page ID
         { name: 'Link', title: 'Full Link (Optional)', type: 'Text', optional: true},
         { name: 'PageID', title: 'Page ID (From _grist_Pages)', type: 'Numeric', optional: true},
         { name: 'Label', title: 'Label', type: 'Text', optional: true}
@@ -54,7 +54,6 @@ function App() {
       }
       const rec = records[0];
       
-      // LOGIC: Determine Target
       let targetUrl = rec.Link;
       if (!targetUrl && rec.PageID) {
         targetUrl = buildUrlFromId(rec.PageID);
@@ -62,7 +61,6 @@ function App() {
 
       const label = rec.Label || "Target";
 
-      // SAFETY: Check Edit Mode
       if (String(label).toUpperCase() === MAGIC_STOP_WORD) {
         setEditMode(true);
         setStatus("Edit Mode Active");
