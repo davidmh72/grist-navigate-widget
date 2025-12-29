@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 
-const WIDGET_VERSION = "v3.6 - Click to Navigate";
+const WIDGET_VERSION = "v3.8 - Auto Expand Redirect";
 
 function App() {
   const [status, setStatus] = useState("Initializing...");
@@ -44,7 +44,8 @@ function App() {
 
     if (url) {
       setConfig({ targetUrl: url, label });
-      setStatus("Ready");
+      setStatus("Redirecting...");
+      handleNavigate(url);
     } else {
       setStatus("Config: Add ?url=... to Widget URL");
     }
@@ -52,22 +53,15 @@ function App() {
 
   if (config?.targetUrl) {
     return (
-      <div 
-        onClick={() => handleNavigate(config.targetUrl)}
-        style={{
-          height: '100vh', 
-          display: 'flex', 
-          flexDirection: 'column',
-          alignItems: 'center', 
-          justifyContent: 'center', 
-          background: '#e6fffa', 
-          color: '#00695c', 
-          fontFamily: 'sans-serif',
-          cursor: 'pointer',
-          userSelect: 'none',
-        }}
-      >
-        <h3>{config.label || "Open"}</h3>
+      <div style={{
+        height: '100vh', 
+        display: 'flex', 
+        alignItems: 'center', 
+        justifyContent: 'center', 
+        fontFamily: 'sans-serif',
+        color: '#666'
+      }}>
+        <h3>Redirecting...</h3>
       </div>
     );
   }
