@@ -100,7 +100,7 @@ function App() {
 
   // Only redirect if we have a URL AND the widget is expanded (large enough)
   useEffect(() => {
-    if config?.targetUrl && config?.ready && isExpanded) {
+    if (config?.targetUrl && config?.ready && isExpanded) {
       handleNavigate(config.targetUrl);
     }
   }, [config, isExpanded, handleNavigate]);
