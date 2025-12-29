@@ -53,18 +53,20 @@ function App() {
   }, []);
 
   // Helper to navigate to a page by name using URL rewriting to /page/<name>
+  // This version is tolerant of different self-hosted URL structures.
   const navigateToPageName = (name) => {
     if (!name) {
       setStatus('No home page configured (use ?homePage=...)');
       return;
     }
     const currentUrl = new URL(window.top.location.href);
-    const docUrlPart = currentUrl.pathname.match(/^(\/o\/[^/]+\/doc\/[^/]+)/);
-    if (!docUrlPart) {
+    // Remove any trailing /p/... or /page/... segments to get the document base path.
+    const basePath = currentUrl.pathname.replace(/(\/p\/[^/]+(\/.*)?|\/page\/[^/]+(\/.*)?)$/, '');
+    if (!basePath || !basePath.startsWith('/o')) {
       setStatus(`Error: Could not determine document URL from '${currentUrl.pathname}'.`);
       return;
     }
-    const newUrl = `${currentUrl.origin}${docUrlPart[0]}/page/${encodeURIComponent(name)}`;
+    const newUrl = `${currentUrl.origin}${basePath}/page/${encodeURIComponent(name)}`;
     if (!window.top.location.href.startsWith(newUrl)) {
       setStatus(`Redirecting to '${name}'...`);
       handleNavigate(newUrl + currentUrl.search);
