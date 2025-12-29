@@ -1,11 +1,20 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 
 const WIDGET_VERSION = "v3.9 - Size Detect Redirect";
 
 function App() {
   const [status, setStatus] = useState("Initializing...");
-  const [config, setConfig] = useState(null);
-  const [isExpanded, setIsExpanded] = useState(false);
+  const [config, setConfig] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    const url = params.get('url');
+    const label = params.get('label');
+    return url ? { targetUrl: url, label } : null;
+  });
+  const [isExpanded, setIsExpanded] = useState(() => {
+    const width = window.innerWidth;
+    const height = window.innerHeight;
+    return width > 100 && height > 100;
+  });
   const grist = window.grist; 
   const mounted = useRef(false);
 
@@ -19,7 +28,6 @@ function App() {
       setIsExpanded(expanded);
     };
 
-    checkSize();
     window.addEventListener('resize', checkSize);
     return () => window.removeEventListener('resize', checkSize);
   }, []);
@@ -35,7 +43,7 @@ function App() {
     });
   }, [status, config, isExpanded]);
 
-  const handleNavigate = (url) => {
+  const handleNavigate = useCallback((url) => {
     if (!url) return;
     try {
       const isSameOrigin = window.top.location.origin === window.location.origin;
@@ -46,7 +54,7 @@ function App() {
       }
     } catch (e) { console.warn("Jump fallback:", e); }
     window.top.location.href = url;
-  };
+  }, []);
 
   useEffect(() => {
     if (mounted.current) return;
@@ -56,25 +64,19 @@ function App() {
 
     grist.ready({ requiredAccess: 'none' });
 
-    const params = new URLSearchParams(window.location.search);
-    const url = params.get('url');
-    const label = params.get('label');
-
-    if (url) {
-      setConfig({ targetUrl: url, label });
+    if (config) {
       setStatus("Ready");
     } else {
       setStatus("Config: Add ?url=... to Widget URL");
     }
-  }, []);
+  }, [config]);
 
   // Only redirect if we have a URL AND the widget is expanded (large enough)
   useEffect(() => {
     if (config?.targetUrl && isExpanded) {
-      setStatus("Redirecting...");
       handleNavigate(config.targetUrl);
     }
-  }, [config, isExpanded]);
+  }, [config, isExpanded, handleNavigate]);
 
   if (config?.targetUrl && isExpanded) {
     return (
