@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 
-const WIDGET_VERSION = "v4.3 - Fixed API usage";
+const WIDGET_VERSION = "v4.5 - Use RowID";
 
 function App() {
   const [status, setStatus] = useState("Initializing...");
@@ -54,23 +54,38 @@ function App() {
   useEffect(() => {
     if (mounted.current) return;
     mounted.current = true;
-
+    
     if (!grist) { setStatus("Error: Grist API missing"); return; }
 
-    const fetchRecords = async (tableId) => {
+    grist.ready({
+      columns: [
+        { name: 'RowID', title: 'RowID', type: 'Numeric' },
+        { name: 'Ready', title: 'Ready', type: 'Bool' },
+        { name: 'Link', title: 'Link', type: 'Text' }
+      ],
+      requiredAccess: 'read table'
+    });
+
+    let tableId;
+
+    const fetchAndSetConfig = async () => {
+      if (!tableId) {
+        setStatus("Please link a table in the Creator Panel.");
+        return;
+      }
       try {
         const records = await grist.rpc.getTableRecords(tableId);
         if (!records) {
           setStatus("Error: Could not fetch records.");
           return;
         }
-        const targetRecord = records.records.find(r => r.fields.ID === 1);
+        const targetRecord = records.records.find(r => r.fields.RowID === 1);
         if (targetRecord) {
           setConfig({ targetUrl: targetRecord.fields.Link, ready: targetRecord.fields.Ready });
-          setStatus("Ready (ID: 1)");
+          setStatus("Ready (RowID: 1)");
         } else {
           setConfig(null);
-          setStatus("Waiting for record with ID 1...");
+          setStatus("Waiting for record with RowID 1...");
         }
       } catch (error) {
         console.error("Error fetching records:", error);
@@ -78,24 +93,18 @@ function App() {
       }
     };
 
-    grist.ready({
-      columns: [
-        { name: 'ID', title: 'ID', type: 'Numeric' },
-        { name: 'Ready', title: 'Ready', type: 'Bool' },
-        { name: 'Link', title: 'Link', type: 'Text' }
-      ],
-      requiredAccess: 'read table'
-    });
-
-    grist.bindTable((table) => {
-      if (table && table.tableId) {
-        fetchRecords(table.tableId);
-        grist.onRecords(() => fetchRecords(table.tableId));
+    grist.onOptions((options) => {
+      if (options && options.tableId) {
+        tableId = options.tableId;
+        fetchAndSetConfig();
       } else {
+        tableId = null;
         setConfig(null);
         setStatus("Please link a table in the Creator Panel.");
       }
     });
+
+    grist.onRecords(fetchAndSetConfig);
   }, []);
 
   // Only redirect if we have a URL AND the widget is expanded (large enough)
@@ -124,7 +133,7 @@ function App() {
     <div style={{height: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: '#ffebee', color: '#c62828', fontFamily: 'sans-serif', padding: '20px', textAlign: 'center'}}>
       <h3>{isExpanded ? status : "Collapsed"}</h3>
       {!isExpanded && <p style={{fontSize: '0.8em', color: '#666'}}>Click to Expand & Navigate</p>}
-      {!config && <p style={{marginTop: '10px', fontSize: '0.8em'}}>Please map <b>ID</b>, <b>Ready</b>, and <b>Link</b> columns in the Creator Panel.</p>}
+      {!config && <p style={{marginTop: '10px', fontSize: '0.8em'}}>Please map <b>RowID</b>, <b>Ready</b>, and <b>Link</b> columns in the Creator Panel.</p>}
       {config && !config.ready && <p style={{marginTop: '10px', fontSize: '0.8em'}}>Ready: <b>{config.ready ? "True" : "False"}</b><br/>Link: {config.targetUrl}</p>}
     </div>
   );
