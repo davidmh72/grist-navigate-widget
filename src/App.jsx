@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 
-const WIDGET_VERSION = "v3.0 - Script Tag Fix";
+const WIDGET_VERSION = "v3.1 - Click Navigation";
 const MAGIC_STOP_WORD = "EDIT"; 
 
 function App() {
   const [status, setStatus] = useState("Initializing...");
   const [editMode, setEditMode] = useState(false);
+  const [target, setTarget] = useState(null);
   const grist = window.grist; 
   const mounted = useRef(false);
 
@@ -24,9 +25,14 @@ function App() {
 
   // Helper to build URL from Page ID
   const buildUrlFromId = (pageId) => {
-    const currentPath = window.top.location.pathname;
-    const basePath = currentPath.split('/p/')[0]; 
-    return `${window.top.location.origin}${basePath}/p/${pageId}`;
+    try {
+      const currentPath = window.top.location.pathname;
+      const basePath = currentPath.split('/p/')[0]; 
+      return `${window.top.location.origin}${basePath}/p/${pageId}`;
+    } catch (e) {
+      console.error("Cannot access top frame:", e);
+      return null;
+    }
   };
 
   useEffect(() => {
@@ -48,6 +54,7 @@ function App() {
     grist.onRecords((records) => {
       if (!records || records.length === 0) {
         setStatus("Waiting for record...");
+        setTarget(null);
         return;
       }
       const rec = records[0];
@@ -66,9 +73,10 @@ function App() {
       }
 
       if (targetUrl) {
-        setStatus(`🚀 Jumping to ${label}...`);
-        handleNavigate(targetUrl);
+        setTarget({ url: targetUrl, label });
+        setStatus("Ready");
       } else {
+        setTarget(null);
         setStatus("Error: Map 'Link' OR 'Page ID'");
       }
     });
@@ -84,8 +92,29 @@ function App() {
     );
   }
 
+  if (target) {
+    return (
+      <div 
+        onClick={() => handleNavigate(target.url)}
+        style={{
+          height: '100vh', 
+          display: 'flex', 
+          alignItems: 'center', 
+          justifyContent: 'center', 
+          background: '#e6fffa', 
+          color: '#00695c', 
+          fontFamily: 'sans-serif',
+          cursor: 'pointer',
+          userSelect: 'none'
+        }}
+      >
+        <h3>{target.label}</h3>
+      </div>
+    );
+  }
+
   return (
-    <div style={{height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#e6fffa', color: '#00695c', fontFamily: 'sans-serif'}}>
+    <div style={{height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#ffebee', color: '#c62828', fontFamily: 'sans-serif', padding: '20px', textAlign: 'center'}}>
       <h3>{status}</h3>
     </div>
   );
