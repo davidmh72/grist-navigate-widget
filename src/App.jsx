@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 
-const WIDGET_VERSION = "v1.0 - Instant Jump";
+const WIDGET_VERSION = "v2.0 - Page ID Support";
 const MAGIC_STOP_WORD = "EDIT"; 
 
 function App() {
@@ -22,6 +22,16 @@ function App() {
     window.top.location.href = url;
   };
 
+  // Helper to build URL from Page ID
+  const buildUrlFromId = (pageId) => {
+    // Get current URL base (e.g. https://dev.teebase.net/o/docs/doc/ID)
+    const currentPath = window.top.location.pathname;
+    // Grist URLs are usually .../p/PAGE_ID
+    // We strip existing /p/... and append the new one
+    const basePath = currentPath.split('/p/')[0]; 
+    return `${window.top.location.origin}${basePath}/p/${pageId}`;
+  };
+
   useEffect(() => {
     if (mounted.current) return;
     mounted.current = true;
@@ -29,7 +39,9 @@ function App() {
 
     grist.ready({
       columns: [
-        { name: 'Link', title: 'Target Link', type: 'Text'},
+        // Allow mapping EITHER a full Link OR a Page ID
+        { name: 'Link', title: 'Full Link (Optional)', type: 'Text', optional: true},
+        { name: 'PageID', title: 'Page ID (From _grist_Pages)', type: 'Numeric', optional: true},
         { name: 'Label', title: 'Label', type: 'Text', optional: true}
       ],
       requiredAccess: 'full'
@@ -41,9 +53,16 @@ function App() {
         return;
       }
       const rec = records[0];
-      const targetUrl = rec.Link;
+      
+      // LOGIC: Determine Target
+      let targetUrl = rec.Link;
+      if (!targetUrl && rec.PageID) {
+        targetUrl = buildUrlFromId(rec.PageID);
+      }
+
       const label = rec.Label || "Target";
 
+      // SAFETY: Check Edit Mode
       if (String(label).toUpperCase() === MAGIC_STOP_WORD) {
         setEditMode(true);
         setStatus("Edit Mode Active");
@@ -54,7 +73,7 @@ function App() {
         setStatus(`🚀 Jumping to ${label}...`);
         handleNavigate(targetUrl);
       } else {
-        setStatus("Error: 'Link' column is empty.");
+        setStatus("Error: Map 'Link' OR 'Page ID'");
       }
     });
   }, []);
