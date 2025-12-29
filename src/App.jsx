@@ -103,8 +103,6 @@ function App() {
         setStatus("Please link a table in the Creator Panel.");
       }
     });
-
-    grist.onRecords(fetchAndSetConfig);
   }, []);
 
   // Only redirect if we have a URL AND the widget is expanded (large enough)
