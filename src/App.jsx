@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 
-const WIDGET_VERSION = "v4.5 - Use RowID";
+const WIDGET_VERSION = "v4.6 - Use RowID";
 
 function App() {
   const [status, setStatus] = useState("Initializing...");
