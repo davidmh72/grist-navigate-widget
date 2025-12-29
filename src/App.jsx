@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 
-const WIDGET_VERSION = "v5.6 - Query Param Only";
+const WIDGET_VERSION = "v5.7 - Query Param Only";
 
 function App() {
   const [status, setStatus] = useState("Initializing...");
