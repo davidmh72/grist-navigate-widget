@@ -1,14 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
-// 1. IMPORT THE API EXPLICITLY
-import * as grist from 'grist-plugin-api';
 
-const WIDGET_VERSION = "v2.1 - API Import Fix";
+const WIDGET_VERSION = "v3.0 - Script Tag Fix";
 const MAGIC_STOP_WORD = "EDIT"; 
 
 function App() {
   const [status, setStatus] = useState("Initializing...");
   const [editMode, setEditMode] = useState(false);
-  // const grist = window.grist; // <--- REMOVE THIS LINE (We imported it above)
+  const grist = window.grist; 
   const mounted = useRef(false);
 
   const handleNavigate = (url) => {
