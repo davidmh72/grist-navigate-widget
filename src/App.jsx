@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 
-const WIDGET_VERSION = "v4.0 - Table Driven Redirect";
+const WIDGET_VERSION = "v4.1 - ID Driven Redirect";
 
 function App() {
   const [status, setStatus] = useState("Initializing...");
@@ -59,19 +59,21 @@ function App() {
 
     grist.ready({
       columns: [
+        { name: 'ID', title: 'ID', type: 'Numeric' },
         { name: 'Ready', title: 'Ready', type: 'Bool' },
         { name: 'Link', title: 'Link', type: 'Text' }
       ],
       requiredAccess: 'read table'
     });
 
-    grist.onRecord((record) => {
-      if (record) {
-        setConfig({ targetUrl: record.Link, ready: record.Ready });
-        setStatus("Ready");
+    grist.onRecords((records) => {
+      const targetRecord = records.find(r => r.ID === 1);
+      if (targetRecord) {
+        setConfig({ targetUrl: targetRecord.Link, ready: targetRecord.Ready });
+        setStatus("Ready (ID: 1)");
       } else {
         setConfig(null);
-        setStatus("Waiting for record...");
+        setStatus("Waiting for record with ID 1...");
       }
     });
   }, []);
@@ -102,7 +104,7 @@ function App() {
     <div style={{height: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: '#ffebee', color: '#c62828', fontFamily: 'sans-serif', padding: '20px', textAlign: 'center'}}>
       <h3>{isExpanded ? status : "Collapsed"}</h3>
       {!isExpanded && <p style={{fontSize: '0.8em', color: '#666'}}>Click to Expand & Navigate</p>}
-      {!config && <p style={{marginTop: '10px', fontSize: '0.8em'}}>Please map <b>Ready</b> and <b>Link</b> columns in the Creator Panel.</p>}
+      {!config && <p style={{marginTop: '10px', fontSize: '0.8em'}}>Please map <b>ID</b>, <b>Ready</b>, and <b>Link</b> columns in the Creator Panel.</p>}
       {config && !config.ready && <p style={{marginTop: '10px', fontSize: '0.8em'}}>Ready: <b>{config.ready ? "True" : "False"}</b><br/>Link: {config.targetUrl}</p>}
     </div>
   );
