@@ -1,14 +1,21 @@
 import React, { useState, useEffect, useRef } from 'react';
 
-const WIDGET_VERSION = "v3.5 - Safe Auto-Navigate";
+const WIDGET_VERSION = "v3.6 - Click to Navigate";
 
 function App() {
   const [status, setStatus] = useState("Initializing...");
   const [config, setConfig] = useState(null);
-  const [autoTimer, setAutoTimer] = useState(null);
   const grist = window.grist; 
   const mounted = useRef(false);
-  const timerRef = useRef(null);
+
+  useEffect(() => {
+    console.log(`[Diagnostic ${WIDGET_VERSION}]`, {
+      status,
+      config,
+      currentUrl: window.location.href,
+      topOrigin: (() => { try { return window.top.location.origin; } catch { return "Blocked"; } })(),
+    });
+  }, [status, config]);
 
   const handleNavigate = (url) => {
     if (!url) return;
@@ -37,33 +44,11 @@ function App() {
 
     if (url) {
       setConfig({ targetUrl: url, label });
-      setAutoTimer(1); // 1 second delay for safety
+      setStatus("Ready");
     } else {
       setStatus("Config: Add ?url=... to Widget URL");
     }
   }, []);
-
-  useEffect(() => {
-    if (autoTimer === null) return;
-    
-    if (autoTimer <= 0) {
-      handleNavigate(config.targetUrl);
-      return;
-    }
-
-    timerRef.current = setTimeout(() => {
-      setAutoTimer(prev => prev - 1);
-    }, 1000);
-
-    return () => clearTimeout(timerRef.current);
-  }, [autoTimer, config]);
-
-  const cancelAuto = (e) => {
-    e.stopPropagation();
-    if (timerRef.current) clearTimeout(timerRef.current);
-    setAutoTimer(null);
-    setStatus("Auto-jump cancelled");
-  };
 
   if (config?.targetUrl) {
     return (
@@ -82,28 +67,7 @@ function App() {
           userSelect: 'none',
         }}
       >
-        {autoTimer !== null ? (
-          <>
-            <h3>Redirecting...</h3>
-            <button 
-              onClick={cancelAuto}
-              style={{
-                marginTop: '10px',
-                padding: '5px 10px',
-                background: '#c62828',
-                color: 'white',
-                border: 'none',
-                borderRadius: '4px',
-                cursor: 'pointer',
-                fontSize: '12px'
-              }}
-            >
-              Cancel
-            </button>
-          </>
-        ) : (
-          <h3>{config.label || "Open"}</h3>
-        )}
+        <h3>{config.label || "Open"}</h3>
       </div>
     );
   }
