@@ -1,15 +1,10 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 
-const WIDGET_VERSION = "v3.9 - Size Detect Redirect";
+const WIDGET_VERSION = "v4.0 - Table Driven Redirect";
 
 function App() {
   const [status, setStatus] = useState("Initializing...");
-  const [config, setConfig] = useState(() => {
-    const params = new URLSearchParams(window.location.search);
-    const url = params.get('url');
-    const label = params.get('label');
-    return url ? { targetUrl: url, label } : null;
-  });
+  const [config, setConfig] = useState(null);
   const [isExpanded, setIsExpanded] = useState(() => {
     const width = window.innerWidth;
     const height = window.innerHeight;
@@ -62,23 +57,33 @@ function App() {
     
     if (!grist) { setStatus("Error: Grist API missing"); return; }
 
-    grist.ready({ requiredAccess: 'none' });
+    grist.ready({
+      columns: [
+        { name: 'Ready', title: 'Ready', type: 'Bool' },
+        { name: 'Link', title: 'Link', type: 'Text' }
+      ],
+      requiredAccess: 'read table'
+    });
 
-    if (config) {
-      setStatus("Ready");
-    } else {
-      setStatus("Config: Add ?url=... to Widget URL");
-    }
-  }, [config]);
+    grist.onRecord((record) => {
+      if (record) {
+        setConfig({ targetUrl: record.Link, ready: record.Ready });
+        setStatus("Ready");
+      } else {
+        setConfig(null);
+        setStatus("Waiting for record...");
+      }
+    });
+  }, []);
 
   // Only redirect if we have a URL AND the widget is expanded (large enough)
   useEffect(() => {
-    if (config?.targetUrl && isExpanded) {
+    if (config?.targetUrl && config?.ready && isExpanded) {
       handleNavigate(config.targetUrl);
     }
   }, [config, isExpanded, handleNavigate]);
 
-  if (config?.targetUrl && isExpanded) {
+  if (config?.targetUrl && config?.ready && isExpanded) {
     return (
       <div style={{
         height: '100vh', 
@@ -97,7 +102,8 @@ function App() {
     <div style={{height: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: '#ffebee', color: '#c62828', fontFamily: 'sans-serif', padding: '20px', textAlign: 'center'}}>
       <h3>{isExpanded ? status : "Collapsed"}</h3>
       {!isExpanded && <p style={{fontSize: '0.8em', color: '#666'}}>Click to Expand & Navigate</p>}
-      {!config && <p style={{marginTop: '10px', fontSize: '0.8em'}}>Set <b>Custom URL</b> in sidebar to:<br/><code>.../index.html?url=https://...</code></p>}
+      {!config && <p style={{marginTop: '10px', fontSize: '0.8em'}}>Please map <b>Ready</b> and <b>Link</b> columns in the Creator Panel.</p>}
+      {config && !config.ready && <p style={{marginTop: '10px', fontSize: '0.8em'}}>Ready: <b>{config.ready ? "True" : "False"}</b><br/>Link: {config.targetUrl}</p>}
     </div>
   );
 }
