@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 
-const WIDGET_VERSION = "v4.1 - ID Driven Redirect";
+const WIDGET_VERSION = "v4.2 - ID Driven Redirect (Table Fetch)";
 
 function App() {
   const [status, setStatus] = useState("Initializing...");
@@ -54,8 +54,29 @@ function App() {
   useEffect(() => {
     if (mounted.current) return;
     mounted.current = true;
-    
+
     if (!grist) { setStatus("Error: Grist API missing"); return; }
+
+    const fetchRecords = async (tableId) => {
+      try {
+        const records = await grist.rpc.getTableRecords(tableId);
+        if (!records) {
+          setStatus("Error: Could not fetch records.");
+          return;
+        }
+        const targetRecord = records.records.find(r => r.fields.ID === 1);
+        if (targetRecord) {
+          setConfig({ targetUrl: targetRecord.fields.Link, ready: targetRecord.fields.Ready });
+          setStatus("Ready (ID: 1)");
+        } else {
+          setConfig(null);
+          setStatus("Waiting for record with ID 1...");
+        }
+      } catch (error) {
+        console.error("Error fetching records:", error);
+        setStatus("Error: Failed to fetch data.");
+      }
+    };
 
     grist.ready({
       columns: [
@@ -66,21 +87,20 @@ function App() {
       requiredAccess: 'read table'
     });
 
-    grist.onRecords((records) => {
-      const targetRecord = records.find(r => r.ID === 1);
-      if (targetRecord) {
-        setConfig({ targetUrl: targetRecord.Link, ready: targetRecord.Ready });
-        setStatus("Ready (ID: 1)");
+    grist.bindTable((table) => {
+      if (table && table.tableId) {
+        fetchRecords(table.tableId);
+        grist.onRecords(() => fetchRecords(table.tableId));
       } else {
         setConfig(null);
-        setStatus("Waiting for record with ID 1...");
+        setStatus("Please link a table in the Creator Panel.");
       }
     });
   }, []);
 
   // Only redirect if we have a URL AND the widget is expanded (large enough)
   useEffect(() => {
-    if (config?.targetUrl && config?.ready && isExpanded) {
+    if config?.targetUrl && config?.ready && isExpanded) {
       handleNavigate(config.targetUrl);
     }
   }, [config, isExpanded, handleNavigate]);
