@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 
-const WIDGET_VERSION = "v4.8 - Diagnostic";
+const WIDGET_VERSION = "v4.9 - Diagnostic";
 
 function App() {
   const [status, setStatus] = useState("Initializing...");
@@ -21,7 +21,14 @@ function App() {
       return;
     }
 
-    grist.ready(); // Simplest ready call
+    grist.ready({
+      requiredAccess: 'read table',
+      columns: [
+        { name: 'RowID', title: 'RowID', type: 'Numeric' },
+        { name: 'Ready', title: 'Ready', type: 'Bool' },
+        { name: 'Link', title: 'Link', type: 'Text' }
+      ]
+    }); // Add back the configuration request
 
     setStatus("Waiting for options...");
 
