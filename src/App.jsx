@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 
-const WIDGET_VERSION = "v5.3 - Robust Page Navigation";
+const WIDGET_VERSION = "v5.5 - Query Param + Local Settings";
 
 function App() {
   const [status, setStatus] = useState("Initializing...");
@@ -45,6 +45,25 @@ function App() {
       setStatus("Error: Grist API missing");
       return;
     }
+
+    // Priority for configuration:
+    // 1. URL query param `homePage`
+    // 2. localStorage saved value (in-widget settings)
+    // 3. Creator Panel option (HomePageName)
+    // 4. default from grist.ready configuration
+    const queryParams = new URLSearchParams(window.location.search);
+    const pageFromQuery = queryParams.get('homePage');
+    const LOCAL_KEY = 'gristNavigate.homePage';
+
+    if (pageFromQuery) {
+      setHomePageName(pageFromQuery);
+    } else {
+      const saved = window.localStorage.getItem(LOCAL_KEY);
+      if (saved) {
+        setHomePageName(saved);
+      }
+    }
+
     grist.ready({
       // We need full access to list the pages in the document.
       requiredAccess: 'full',
@@ -52,14 +71,77 @@ function App() {
         { name: 'HomePageName', title: 'Home Page Name', type: 'Text', value: 'Home' }
       ]
     });
+
     grist.onOptions((options) => {
-      if (options && options.HomePageName) {
-        setHomePageName(options.HomePageName);
-      } else {
-        setHomePageName(null);
+      // Only override with Creator Panel option if no query param or local setting is present
+      if (!pageFromQuery) {
+        const saved = window.localStorage.getItem(LOCAL_KEY);
+        if (!saved) {
+          setHomePageName(options?.HomePageName || 'Home');
+        }
       }
     });
   }, [grist]);
+
+  // In-widget editor state and helpers
+  const [isEditing, setIsEditing] = useState(false);
+  const [editValue, setEditValue] = useState('');
+  const LOCAL_KEY = 'gristNavigate.homePage';
+
+  const startEdit = () => {
+    setEditValue(homePageName || '');
+    setIsEditing(true);
+  };
+
+  const cancelEdit = () => {
+    setIsEditing(false);
+    setEditValue('');
+  };
+
+  const saveEdit = () => {
+    const v = editValue ? editValue.trim() : '';
+    if (v) {
+      window.localStorage.setItem(LOCAL_KEY, v);
+      setHomePageName(v);
+      setStatus(`Saved home page '${v}'`);
+    } else {
+      window.localStorage.removeItem(LOCAL_KEY);
+      setHomePageName(null);
+      setStatus('Cleared home page setting');
+    }
+    setIsEditing(false);
+  };
+
+  const triggerNavigateForName = async (name) => {
+    if (!name) {
+      setStatus('No home page configured');
+      return;
+    }
+    if (!grist) {
+      setStatus('Grist API not available');
+      return;
+    }
+    setStatus(`Finding page '${name}'...`);
+    try {
+      const pages = await grist.getDocPages();
+      const targetPage = pages.find(p => p.name === name);
+      if (!targetPage) {
+        setStatus(`Error: Page '${name}' not found.`);
+        return;
+      }
+      const currentUrl = new URL(window.top.location.href);
+      const docUrlPart = currentUrl.pathname.match(/^(\/o\/[^/]+\/doc\/[^/]+)/);
+      if (!docUrlPart) {
+        setStatus(`Error: Could not determine document URL`);
+        return;
+      }
+      const newUrl = `${currentUrl.origin}${docUrlPart[0]}/p/${targetPage.id}`;
+      handleNavigate(newUrl + currentUrl.search);
+    } catch (err) {
+      console.error('Error navigating to page:', err);
+      setStatus(`Error: Could not access document pages. Please grant 'full' access in the Creator Panel.`);
+    }
+  };
 
   useEffect(() => {
     const findAndNavigate = async () => {
@@ -115,9 +197,24 @@ function App() {
   }
 
   return (
-    <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', fontFamily: 'sans-serif', textAlign: 'center', cursor: 'pointer', background: '#f0f4f8' }}>
-      <h3 style={{ margin: 0, fontSize: '1em', color: '#333' }}>{homePageName || 'Home'}</h3>
-      <p style={{ margin: 0, fontSize: '0.8em', color: '#666' }}>Click to navigate</p>
+    <div
+      onClick={() => { if (!isEditing) { if (homePageName) triggerNavigateForName(homePageName); else setStatus('No home page set'); } }}
+      style={{ height: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', fontFamily: 'sans-serif', textAlign: 'center', cursor: isEditing ? 'text' : 'pointer', background: '#f0f4f8' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <h3 style={{ margin: 0, fontSize: '1em', color: '#333' }}>{homePageName || 'Home'}</h3>
+        {!isEditing && (
+          <button onClick={(e) => { e.stopPropagation(); startEdit(); }} style={{ fontSize: '0.8em', padding: '4px 8px' }}>Edit</button>
+        )}
+      </div>
+      {isEditing ? (
+        <div style={{ marginTop: '8px', display: 'flex', gap: '6px' }} onClick={(e) => e.stopPropagation()}>
+          <input value={editValue} onChange={(e) => setEditValue(e.target.value)} style={{ padding: '6px' }} />
+          <button onClick={saveEdit} style={{ padding: '6px' }}>Save</button>
+          <button onClick={cancelEdit} style={{ padding: '6px' }}>Cancel</button>
+        </div>
+      ) : (
+        <p style={{ margin: 0, fontSize: '0.8em', color: '#666' }}>Click to navigate</p>
+      )}
     </div>
   );
 }
